@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BitsCrunch Wallet Analyzer Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <div class="header">
+            <div class="header-content">
+                <h1><i class="fas fa-robot"></i> Wallet Genius</h1>
+                <p>Advanced blockchain wallet analytics powered by AI</p>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div id="chat-messages" class="chat-messages">
+                <div class="welcome-message bot-message">
+                    <div class="message-content">
+                        <h3><i class="fas fa-lightbulb"></i> What would you like to analyze?</h3>
+                        <p>I can provide deep insights about any Ethereum-compatible wallet including:</p>
+                        
+                        <div class="quick-questions">
+                            <div class="question-group">
+                                <h4><i class="fas fa-wallet"></i> Wallet Analysis</h4>
+                                <div class="question" onclick="handleQuestionClick('Analyze 0x...', event)">Show all tokens in a wallet</div>
+                                <div class="question" onclick="handleQuestionClick('Show NFT holdings for 0x...', event)">View NFT collection</div>
+                            </div>
+                            
+                            <div class="question-group">
+                                <h4><i class="fas fa-chart-line"></i> Analytics</h4>
+                                <div class="question" onclick="handleQuestionClick('Show transaction history for 0x...', event)">Transaction history</div>
+                                <div class="question" onclick="handleQuestionClick('Analyze whale wallet 0x...', event)">Whale wallet analysis</div>
+                            </div>
+                            
+                            <div class="question-group">
+                                <h4><i class="fas fa-shield-alt"></i> Security</h4>
+                                <div class="question" onclick="handleQuestionClick('Check risks for 0x...', event)">Risk assessment</div>
+                                <div class="question" onclick="handleQuestionClick('Verify contract 0x...', event)">Contract verification</div>
+                            </div>
+                        </div>
+                        
+                        <div class="example-prompt">
+                            <p>Try analyzing a wallet: <code>0x...address</code></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <form id="chat-form" class="chat-form" onsubmit="return handleFormSubmit(event)">
+                <input type="text" name="message" class="chat-input" placeholder="Ask about any wallet (0x...) or select a question above" required>
+                <button type="submit" class="chat-button">
+                    <i class="fas fa-paper-plane"></i> Send
+                    <div class="loading-indicator"></div>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Keep your original JavaScript - just fixing the core functions
+        document.addEventListener('DOMContentLoaded', function() {
+            maintainScroll();
+            
+            // HTMX event handlers
+            document.body.addEventListener('htmx:afterSwap', function(evt) {
+                if (evt.detail.target.id === 'chat-messages') {
+                    maintainScroll();
+                    document.querySelector('.chat-input').focus();
+                }
+            });
+            
+            document.body.addEventListener('htmx:beforeSend', function() {
+                document.querySelector('.loading-indicator').style.display = 'inline-block';
+            });
+            
+            document.body.addEventListener('htmx:afterOnLoad', function() {
+                document.querySelector('.loading-indicator').style.display = 'none';
+            });
+        });
+
+        function maintainScroll() {
+            const chatMessages = document.getElementById('chat-messages');
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function handleFormSubmit(event) {
+            event.preventDefault();
+            const input = event.target.querySelector('.chat-input');
+            const message = input.value.trim();
+            
+            if (!message) return false;
+            
+            // Send to server using fetch (not HTMX to avoid conflicts)
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'message=' + encodeURIComponent(message)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.html) {
+                    document.getElementById('chat-messages').insertAdjacentHTML('beforeend', data.html);
+                    maintainScroll();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                const errorHtml = `
+                    <div class="message bot-message">
+                        <div class="message-content error">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <p>Error: Failed to get response</p>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('chat-messages').insertAdjacentHTML('beforeend', errorHtml);
+                maintainScroll();
+            });
+            
+            input.value = '';
+            return false;
+        }
+
+        function handleQuestionClick(question, event) {
+            const input = document.querySelector('.chat-input');
+            const currentAddress = input.value.trim();
+            
+            if (!currentAddress || !currentAddress.startsWith('0x') || currentAddress.length < 42) {
+                alert('Please enter a valid wallet address first (0x...)');
+                input.focus();
+                return;
+            }
+            
+            const finalQuestion = question.replace('0x...', currentAddress);
+            input.value = finalQuestion;
+            handleFormSubmit({preventDefault: () => {}, target: document.querySelector('#chat-form')});
+            
+            event.target.classList.add('question-clicked');
+            setTimeout(() => {
+                event.target.classList.remove('question-clicked');
+            }, 200);
+        }
+
+        function sendMessage(message) {
+            document.querySelector('.chat-input').value = message;
+            handleFormSubmit({preventDefault: () => {}, target: document.querySelector('#chat-form')});
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                console.log('Copied to clipboard');
+            });
+        }
+    </script>
+</body>
+</html>
